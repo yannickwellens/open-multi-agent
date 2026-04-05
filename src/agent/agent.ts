@@ -50,6 +50,19 @@ import {
 
 const ZERO_USAGE: TokenUsage = { input_tokens: 0, output_tokens: 0 }
 
+/**
+ * Combine two {@link AbortSignal}s so that aborting either one cancels the
+ * returned signal.  Works on Node 18+ (no `AbortSignal.any` required).
+ */
+function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const controller = new AbortController()
+  if (a.aborted || b.aborted) { controller.abort(); return controller.signal }
+  const abort = () => controller.abort()
+  a.addEventListener('abort', abort, { once: true })
+  b.addEventListener('abort', abort, { once: true })
+  return controller.signal
+}
+
 function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
   return {
     input_tokens: a.input_tokens + b.input_tokens,
@@ -298,11 +311,17 @@ export class Agent {
       const timeoutSignal = this.config.timeoutMs !== undefined && this.config.timeoutMs > 0
         ? AbortSignal.timeout(this.config.timeoutMs)
         : undefined
+      // Merge caller-provided abortSignal with the timeout signal so that
+      // either cancellation source is respected.
+      const callerAbort = callerOptions?.abortSignal
+      const effectiveAbort = timeoutSignal && callerAbort
+        ? mergeAbortSignals(timeoutSignal, callerAbort)
+        : timeoutSignal ?? callerAbort
       const runOptions: RunOptions = {
         ...callerOptions,
         onMessage: internalOnMessage,
         ...(needsRunId ? { runId: generateRunId() } : undefined),
-        ...(timeoutSignal ? { abortSignal: timeoutSignal } : undefined),
+        ...(effectiveAbort ? { abortSignal: effectiveAbort } : undefined),
       }
 
       const result = await runner.run(messages, runOptions)

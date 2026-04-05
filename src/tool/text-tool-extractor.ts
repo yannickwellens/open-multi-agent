@@ -211,15 +211,6 @@ export function extractToolCallsFromText(
 
   const results: ToolUseBlock[] = []
   for (const obj of jsonObjects) {
-    // Handle array of tool calls
-    if (Array.isArray(obj)) {
-      for (const item of obj) {
-        const block = parseToolCallJSON(item, nameSet)
-        if (block !== null) results.push(block)
-      }
-      continue
-    }
-
     const block = parseToolCallJSON(obj, nameSet)
     if (block !== null) results.push(block)
   }
