@@ -138,7 +138,7 @@ For MapReduce-style fan-out without task dependencies, use `AgentPool.runParalle
 
 ## Examples
 
-15 runnable scripts in [`examples/`](./examples/). Start with these four:
+16 runnable scripts in [`examples/`](./examples/). Start with these four:
 
 - [02 — Team Collaboration](examples/02-team-collaboration.ts): `runTeam()` coordinator pattern.
 - [06 — Local Model](examples/06-local-model.ts): Ollama and Claude in one pipeline via `baseURL`.
@@ -247,6 +247,30 @@ const customAgent: AgentConfig = {
 ### Custom Tools
 
 Tools added via `agent.addTool()` are always available regardless of filtering.
+
+### MCP Tools (Model Context Protocol)
+
+`open-multi-agent` can connect to any MCP server and expose its tools directly to agents.
+
+```typescript
+import { connectMCPTools } from '@jackchen_me/open-multi-agent/mcp'
+
+const { tools, disconnect } = await connectMCPTools({
+  command: 'npx',
+  args: ['-y', '@modelcontextprotocol/server-github'],
+  env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
+  namePrefix: 'github',
+})
+
+// Register each MCP tool in your ToolRegistry, then include their names in AgentConfig.tools
+// Don't forget cleanup when done
+await disconnect()
+```
+
+Notes:
+- `@modelcontextprotocol/sdk` is an optional peer dependency, only needed when using MCP.
+- Current transport support is stdio.
+- MCP input validation is delegated to the MCP server (`inputSchema` is `z.any()`).
 
 ## Supported Providers
 
